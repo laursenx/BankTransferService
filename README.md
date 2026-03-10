@@ -93,7 +93,7 @@ In `appsettings.json`, set your connection string:
 dotnet run --project BankTransferService
 ```
 
-The API docs (Scalar) will be at `https://localhost:{port}/scalar/v1`.
+The API docs (Scalar) will be at `http://localhost:5227/scalar/v1` (or `https://localhost:7150` if using the https profile).
 
 ## Seed data
 
@@ -133,6 +133,18 @@ These are the scenarios I tested manually through Scalar/Postman:
 | T10 | Decimal amount | 1001→1002, 99.95 | 201 | Balances reflect exact decimals |
 | T11 | SQL injection attempt | Malicious reference string | 201/400 | Tables intact, parameterized SQL handles it |
 | T12 | Mid-transaction failure | Simulated error after debit | 500 | Full rollback, no changes |
+
+---
+
+## Known limitations
+
+Since this is a school project there are some things I didn't implement but would consider for a real system:
+
+- There's no authentication, so all endpoints are open. You'd obviously want JWT or something similar in production.
+- No rate limiting on any of the endpoints, so in theory someone could just spam transfers.
+- The API gives pretty specific error messages like "account not active" which is nice for debugging but probably not great in production since it leaks internal state.
+- No daily transfer limits or per-transaction caps — you can drain a whole account in one call.
+- Transfers are logged in the database but there's no audit trail for who actually made the request.
 
 ---
 

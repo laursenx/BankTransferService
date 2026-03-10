@@ -8,7 +8,11 @@ namespace BankTransferService.Interfaces;
 public interface ITransferRepository
 {
     /// <summary>
-    /// Executes the debit, credit and transfer log insert atomically using the provided connection factory.
+    /// Reads both accounts with row-level locks, validates existence / active status / balance,
+    /// then executes the debit, credit and transfer log insert atomically.
     /// </summary>
-    Task<Guid> ExecuteTransferAsync(Transfer transfer, IDbConnectionFactory connectionFactory);
+    Task<TransferResult> ExecuteTransferAsync(
+        Transfer transfer,
+        IDbConnectionFactory connectionFactory
+    );
 }

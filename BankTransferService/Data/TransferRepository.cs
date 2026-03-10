@@ -1,3 +1,4 @@
+using System.Data;
 using BankTransferService.Interfaces;
 using BankTransferService.Models.Domain;
 using Microsoft.Data.SqlClient;
@@ -8,7 +9,7 @@ namespace BankTransferService.Data;
 /// <inheritdoc />
 public class TransferRepository : ITransferRepository
 {
-    public async Task<Guid> ExecuteTransferAsync(
+    public async Task<TransferResult> ExecuteTransferAsync(
         Transfer transfer,
         IDbConnectionFactory connectionFactory
     )
@@ -18,10 +19,46 @@ public class TransferRepository : ITransferRepository
 
         await using var connection = connectionFactory.CreateConnection();
         await connection.OpenAsync();
-        await using var transaction = connection.BeginTransaction();
+        await using var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
 
         try
         {
+            var fromAccount = await GetAccountForUpdateAsync(
+                connection,
+                transaction,
+                transfer.FromAccountId
+            );
+            if (fromAccount is null)
+                return TransferResult.NotFound(
+                    $"Source account '{transfer.FromAccountId}' was not found."
+                );
+
+            var toAccount = await GetAccountForUpdateAsync(
+                connection,
+                transaction,
+                transfer.ToAccountId
+            );
+            if (toAccount is null)
+                return TransferResult.NotFound(
+                    $"Destination account '{transfer.ToAccountId}' was not found."
+                );
+
+            if (!fromAccount.IsActive)
+                return TransferResult.Fail(
+                    $"Source account '{fromAccount.AccountNumber}' is not active."
+                );
+
+            if (!toAccount.IsActive)
+                return TransferResult.Fail(
+                    $"Destination account '{toAccount.AccountNumber}' is not active."
+                );
+
+            var availableBalance = fromAccount.Balance + fromAccount.OverdraftLimit;
+            if (transfer.Amount > availableBalance)
+                return TransferResult.Fail(
+                    $"Insufficient funds. Available balance including overdraft: {availableBalance:F2}."
+                );
+
             await UpdateBalanceAsync(
                 connection,
                 transaction,
@@ -43,7 +80,37 @@ public class TransferRepository : ITransferRepository
             throw;
         }
 
-        return id;
+        return TransferResult.Ok(id);
+    }
+
+    private static async Task<Account?> GetAccountForUpdateAsync(
+        SqlConnection connection,
+        SqlTransaction transaction,
+        Guid accountId
+    )
+    {
+        const string sql = """
+            SELECT Id, AccountNumber, OwnerName, Balance, OverdraftLimit, IsActive
+            FROM Accounts WITH (UPDLOCK, HOLDLOCK)
+            WHERE Id = @Id
+            """;
+
+        await using var cmd = new SqlCommand(sql, connection, transaction);
+        cmd.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = accountId;
+
+        await using var reader = await cmd.ExecuteReaderAsync();
+        if (!await reader.ReadAsync())
+            return null;
+
+        return new Account
+        {
+            Id = reader.GetGuid(reader.GetOrdinal("Id")),
+            AccountNumber = reader.GetString(reader.GetOrdinal("AccountNumber")),
+            OwnerName = reader.GetString(reader.GetOrdinal("OwnerName")),
+            Balance = reader.GetDecimal(reader.GetOrdinal("Balance")),
+            OverdraftLimit = reader.GetDecimal(reader.GetOrdinal("OverdraftLimit")),
+            IsActive = reader.GetBoolean(reader.GetOrdinal("IsActive")),
+        };
     }
 
     private static async Task UpdateBalanceAsync(
@@ -58,7 +125,12 @@ public class TransferRepository : ITransferRepository
         await using var cmd = new SqlCommand(sql, connection, transaction);
         cmd.Parameters.Add("@Delta", SqlDbType.Decimal).Value = delta;
         cmd.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = accountId;
-        await cmd.ExecuteNonQueryAsync();
+
+        var rowsAffected = await cmd.ExecuteNonQueryAsync();
+        if (rowsAffected != 1)
+            throw new InvalidOperationException(
+                $"Expected 1 row affected when updating account '{accountId}', but got {rowsAffected}."
+            );
     }
 
     private static async Task InsertTransferLogAsync(
