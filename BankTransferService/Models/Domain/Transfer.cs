@@ -1,4 +1,4 @@
-namespace BankTransferService.Models;
+namespace BankTransferService.Models.Domain;
 
 /// <summary>
 /// Represents a completed money transfer between two accounts.

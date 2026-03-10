@@ -1,4 +1,5 @@
-using BankTransferService.Interfaces;
+﻿using BankTransferService.Interfaces;
+using BankTransferService.Models.Responses;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BankTransferService.Controllers;
@@ -33,9 +34,15 @@ public class AccountsController : ControllerBase
     {
         var account = await _accountRepository.GetByIdAsync(id);
         if (account is null)
-            return NotFound(new { message = $"Account '{id}' was not found." });
+            return NotFound(new ErrorResponse { Message = $"Account '{id}' was not found." });
 
-        return Ok(account);
+        return Ok(new AccountResponse
+        {
+            Id            = account.Id,
+            AccountNumber = account.AccountNumber,
+            OwnerName     = account.OwnerName,
+            Balance       = account.Balance
+        });
     }
 
     /// <summary>
@@ -49,9 +56,18 @@ public class AccountsController : ControllerBase
     {
         var account = await _accountRepository.GetByIdAsync(id);
         if (account is null)
-            return NotFound(new { message = $"Account '{id}' was not found." });
+            return NotFound(new ErrorResponse { Message = $"Account '{id}' was not found." });
 
         var transfers = await _transferQueryRepository.GetByAccountIdAsync(id);
-        return Ok(transfers);
+        return Ok(transfers.Select(t => new TransferResponse
+        {
+            Id            = t.Id,
+            FromAccountId = t.FromAccountId,
+            ToAccountId   = t.ToAccountId,
+            Amount        = t.Amount,
+            Reference     = t.Reference,
+            Description   = t.Description,
+            CreatedUtc    = t.CreatedUtc
+        }));
     }
 }

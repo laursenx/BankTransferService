@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace BankTransferService.Models;
+namespace BankTransferService.Models.Requests;
 
 /// <summary>
 /// Input model received from the API client when requesting a transfer.

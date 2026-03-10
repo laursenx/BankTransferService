@@ -1,4 +1,4 @@
-namespace BankTransferService.Models;
+namespace BankTransferService.Models.Domain;
 
 /// <summary>
 /// Represents a bank account that can send or receive money.

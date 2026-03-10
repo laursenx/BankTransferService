@@ -1,5 +1,5 @@
 using BankTransferService.Interfaces;
-using BankTransferService.Models;
+using BankTransferService.Models.Domain;
 using Microsoft.Data.SqlClient;
 
 namespace BankTransferService.Data;

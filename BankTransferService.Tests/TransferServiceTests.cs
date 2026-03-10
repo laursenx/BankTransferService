@@ -1,5 +1,6 @@
 using BankTransferService.Interfaces;
-using BankTransferService.Models;
+using BankTransferService.Models.Domain;
+using BankTransferService.Models.Requests;
 using BankTransferService.Services;
 using Microsoft.Extensions.Logging.Abstractions;
 

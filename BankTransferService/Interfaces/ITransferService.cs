@@ -1,4 +1,5 @@
-using BankTransferService.Models;
+using BankTransferService.Models.Domain;
+using BankTransferService.Models.Requests;
 
 namespace BankTransferService.Interfaces;
 

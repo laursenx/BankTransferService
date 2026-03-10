@@ -1,4 +1,4 @@
-namespace BankTransferService.Models;
+namespace BankTransferService.Models.Domain;
 
 /// <summary>
 /// Result returned from the service layer to the controller after a transfer attempt.

@@ -1,5 +1,6 @@
 using BankTransferService.Interfaces;
-using BankTransferService.Models;
+using BankTransferService.Models.Requests;
+using BankTransferService.Models.Responses;
 using Microsoft.AspNetCore.Mvc;
 
 namespace BankTransferService.Controllers;
@@ -34,17 +35,20 @@ public class TransfersController : ControllerBase
         var result = await _transferService.ExecuteTransferAsync(request);
 
         if (result.Success)
-            return StatusCode(StatusCodes.Status201Created, new { transferId = result.TransferId });
+            return StatusCode(StatusCodes.Status201Created, new TransferCreatedResponse
+            {
+                TransferId = result.TransferId!.Value
+            });
 
         if (result.IsNotFound)
-            return NotFound(new { message = result.ErrorMessage });
+            return NotFound(new ErrorResponse { Message = result.ErrorMessage! });
 
         if (result.IsServerError)
             return StatusCode(
                 StatusCodes.Status500InternalServerError,
-                new { message = result.ErrorMessage }
+                new ErrorResponse { Message = result.ErrorMessage! }
             );
 
-        return BadRequest(new { message = result.ErrorMessage });
+        return BadRequest(new ErrorResponse { Message = result.ErrorMessage! });
     }
 }
