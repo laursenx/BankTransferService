@@ -8,7 +8,10 @@ namespace BankTransferService.Data;
 /// <inheritdoc />
 public class TransferRepository : ITransferRepository
 {
-    public async Task<Guid> ExecuteTransferAsync(Transfer transfer, IDbConnectionFactory connectionFactory)
+    public async Task<Guid> ExecuteTransferAsync(
+        Transfer transfer,
+        IDbConnectionFactory connectionFactory
+    )
     {
         var id = Guid.NewGuid();
         var createdUtc = DateTime.UtcNow;
@@ -19,8 +22,18 @@ public class TransferRepository : ITransferRepository
 
         try
         {
-            await UpdateBalanceAsync(connection, transaction, transfer.FromAccountId, -transfer.Amount);
-            await UpdateBalanceAsync(connection, transaction, transfer.ToAccountId, +transfer.Amount);
+            await UpdateBalanceAsync(
+                connection,
+                transaction,
+                transfer.FromAccountId,
+                -transfer.Amount
+            );
+            await UpdateBalanceAsync(
+                connection,
+                transaction,
+                transfer.ToAccountId,
+                +transfer.Amount
+            );
             await InsertTransferLogAsync(connection, transaction, transfer, id, createdUtc);
             await transaction.CommitAsync();
         }
@@ -34,7 +47,11 @@ public class TransferRepository : ITransferRepository
     }
 
     private static async Task UpdateBalanceAsync(
-        SqlConnection connection, SqlTransaction transaction, Guid accountId, decimal delta)
+        SqlConnection connection,
+        SqlTransaction transaction,
+        Guid accountId,
+        decimal delta
+    )
     {
         const string sql = "UPDATE Accounts SET Balance = Balance + @Delta WHERE Id = @Id";
 
@@ -45,8 +62,12 @@ public class TransferRepository : ITransferRepository
     }
 
     private static async Task InsertTransferLogAsync(
-        SqlConnection connection, SqlTransaction transaction,
-        Transfer transfer, Guid id, DateTime createdUtc)
+        SqlConnection connection,
+        SqlTransaction transaction,
+        Transfer transfer,
+        Guid id,
+        DateTime createdUtc
+    )
     {
         const string sql = """
             INSERT INTO Transfers (Id, FromAccountId, ToAccountId, Amount, Reference, Description, CreatedUtc)
@@ -56,11 +77,15 @@ public class TransferRepository : ITransferRepository
         await using var cmd = new SqlCommand(sql, connection, transaction);
 
         cmd.Parameters.Add("@Id", SqlDbType.UniqueIdentifier).Value = id;
-        cmd.Parameters.Add("@FromAccountId", SqlDbType.UniqueIdentifier).Value = transfer.FromAccountId;
+        cmd.Parameters.Add("@FromAccountId", SqlDbType.UniqueIdentifier).Value =
+            transfer.FromAccountId;
         cmd.Parameters.Add("@ToAccountId", SqlDbType.UniqueIdentifier).Value = transfer.ToAccountId;
         cmd.Parameters.Add("@Amount", SqlDbType.Decimal).Value = transfer.Amount;
         cmd.Parameters.Add("@Reference", SqlDbType.NVarChar, 140).Value = transfer.Reference;
-        cmd.Parameters.Add("@Description", SqlDbType.NVarChar, 300).Value = transfer.Description is null ? DBNull.Value : transfer.Description;
+        cmd.Parameters.Add("@Description", SqlDbType.NVarChar, 300).Value = transfer.Description
+            is null
+            ? DBNull.Value
+            : transfer.Description;
         cmd.Parameters.Add("@CreatedUtc", SqlDbType.DateTime2).Value = createdUtc;
 
         await cmd.ExecuteNonQueryAsync();

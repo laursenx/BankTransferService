@@ -35,10 +35,10 @@ public class TransfersController : ControllerBase
         var result = await _transferService.ExecuteTransferAsync(request);
 
         if (result.Success)
-            return StatusCode(StatusCodes.Status201Created, new TransferCreatedResponse
-            {
-                TransferId = result.TransferId!.Value
-            });
+            return StatusCode(
+                StatusCodes.Status201Created,
+                new TransferCreatedResponse { TransferId = result.TransferId!.Value }
+            );
 
         if (result.IsNotFound)
             return NotFound(new ErrorResponse { Message = result.ErrorMessage! });

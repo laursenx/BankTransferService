@@ -9,12 +9,15 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen(options =>
 {
-    options.SwaggerDoc("v1", new Microsoft.OpenApi.Models.OpenApiInfo
-    {
-        Title = "BankTransferService API",
-        Version = "v1",
-        Description = "Microservice for executing atomic bank account transfers."
-    });
+    options.SwaggerDoc(
+        "v1",
+        new Microsoft.OpenApi.Models.OpenApiInfo
+        {
+            Title = "BankTransferService API",
+            Version = "v1",
+            Description = "Microservice for executing atomic bank account transfers.",
+        }
+    );
 });
 
 builder.Services.AddSingleton<IDbConnectionFactory, SqlConnectionFactory>();
@@ -32,15 +35,16 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    app.UseExceptionHandler(error => error.Run(async context =>
-    {
-        context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-        context.Response.ContentType = "application/json";
-        await context.Response.WriteAsJsonAsync(new
+    app.UseExceptionHandler(error =>
+        error.Run(async context =>
         {
-            message = "An unexpected error occurred. Please try again later."
-        });
-    }));
+            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
+            context.Response.ContentType = "application/json";
+            await context.Response.WriteAsJsonAsync(
+                new { message = "An unexpected error occurred. Please try again later." }
+            );
+        })
+    );
     app.UseHsts();
 }
 

@@ -36,13 +36,15 @@ public class AccountsController : ControllerBase
         if (account is null)
             return NotFound(new ErrorResponse { Message = $"Account '{id}' was not found." });
 
-        return Ok(new AccountResponse
-        {
-            Id            = account.Id,
-            AccountNumber = account.AccountNumber,
-            OwnerName     = account.OwnerName,
-            Balance       = account.Balance
-        });
+        return Ok(
+            new AccountResponse
+            {
+                Id = account.Id,
+                AccountNumber = account.AccountNumber,
+                OwnerName = account.OwnerName,
+                Balance = account.Balance,
+            }
+        );
     }
 
     /// <summary>
@@ -59,15 +61,17 @@ public class AccountsController : ControllerBase
             return NotFound(new ErrorResponse { Message = $"Account '{id}' was not found." });
 
         var transfers = await _transferQueryRepository.GetByAccountIdAsync(id);
-        return Ok(transfers.Select(t => new TransferResponse
-        {
-            Id            = t.Id,
-            FromAccountId = t.FromAccountId,
-            ToAccountId   = t.ToAccountId,
-            Amount        = t.Amount,
-            Reference     = t.Reference,
-            Description   = t.Description,
-            CreatedUtc    = t.CreatedUtc
-        }));
+        return Ok(
+            transfers.Select(t => new TransferResponse
+            {
+                Id = t.Id,
+                FromAccountId = t.FromAccountId,
+                ToAccountId = t.ToAccountId,
+                Amount = t.Amount,
+                Reference = t.Reference,
+                Description = t.Description,
+                CreatedUtc = t.CreatedUtc,
+            })
+        );
     }
 }
