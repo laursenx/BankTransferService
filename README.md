@@ -65,8 +65,8 @@ If any of those fail, nothing gets saved. The debit, credit, and transfer log al
 First create a database called `BankTransferDb`, then run the seed script against it:
 
 ```bash
-sqlcmd -S localhost -E -Q "CREATE DATABASE BankTransferDb"
-sqlcmd -S localhost -E -d BankTransferDb -i database/bank-transfer-service-schema-seed.sql
+sqlcmd -S "(LocalDB)\MSSQLLocalDB" -Q "CREATE DATABASE BankTransferDb"
+sqlcmd -S "(LocalDB)\MSSQLLocalDB" -d BankTransferDb -i BankTransferService/database/bank-transfer-service-schema-seed.sql
 ```
 
 Or just open `database/bank-transfer-service-schema-seed.sql` in SSMS and run it there. It creates the tables and inserts some test accounts.
