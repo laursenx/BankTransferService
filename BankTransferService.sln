@@ -1,4 +1,4 @@
-
+﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
 # Visual Studio Version 17
 VisualStudioVersion = 17.14.36811.4
@@ -6,6 +6,8 @@ MinimumVisualStudioVersion = 10.0.40219.1
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BankTransferService.Tests", "BankTransferService.Tests\BankTransferService.Tests.csproj", "{530899DD-EBC0-45E1-8C41-8E7D9B58BFE8}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BankTransferService", "BankTransferService\BankTransferService.csproj", "{80BA5CAD-5F45-45B9-85C1-39C466F3791B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BankTransferService.IntegrationTests", "BankTransferService.IntegrationTests\BankTransferService.IntegrationTests.csproj", "{CFE915AE-0400-4C62-A24B-D019BE2E4DA3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -41,6 +43,18 @@ Global
 		{80BA5CAD-5F45-45B9-85C1-39C466F3791B}.Release|x64.Build.0 = Release|Any CPU
 		{80BA5CAD-5F45-45B9-85C1-39C466F3791B}.Release|x86.ActiveCfg = Release|Any CPU
 		{80BA5CAD-5F45-45B9-85C1-39C466F3791B}.Release|x86.Build.0 = Release|Any CPU
+		{CFE915AE-0400-4C62-A24B-D019BE2E4DA3}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{CFE915AE-0400-4C62-A24B-D019BE2E4DA3}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{CFE915AE-0400-4C62-A24B-D019BE2E4DA3}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{CFE915AE-0400-4C62-A24B-D019BE2E4DA3}.Debug|x64.Build.0 = Debug|Any CPU
+		{CFE915AE-0400-4C62-A24B-D019BE2E4DA3}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{CFE915AE-0400-4C62-A24B-D019BE2E4DA3}.Debug|x86.Build.0 = Debug|Any CPU
+		{CFE915AE-0400-4C62-A24B-D019BE2E4DA3}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{CFE915AE-0400-4C62-A24B-D019BE2E4DA3}.Release|Any CPU.Build.0 = Release|Any CPU
+		{CFE915AE-0400-4C62-A24B-D019BE2E4DA3}.Release|x64.ActiveCfg = Release|Any CPU
+		{CFE915AE-0400-4C62-A24B-D019BE2E4DA3}.Release|x64.Build.0 = Release|Any CPU
+		{CFE915AE-0400-4C62-A24B-D019BE2E4DA3}.Release|x86.ActiveCfg = Release|Any CPU
+		{CFE915AE-0400-4C62-A24B-D019BE2E4DA3}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
