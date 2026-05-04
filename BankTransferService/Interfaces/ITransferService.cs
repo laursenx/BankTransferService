@@ -8,5 +8,12 @@ namespace BankTransferService.Interfaces;
 /// </summary>
 public interface ITransferService
 {
-    Task<TransferResult> ExecuteTransferAsync(TransferRequest request);
+    /// <summary>
+    /// Executes a transfer. When <paramref name="idempotencyKey"/> is provided and a transfer
+    /// already exists with that key, the existing transfer is returned without creating a new one.
+    /// </summary>
+    Task<TransferResult> ExecuteTransferAsync(
+        TransferRequest request,
+        string? idempotencyKey = null
+    );
 }

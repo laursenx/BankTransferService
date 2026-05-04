@@ -11,5 +11,6 @@ public class Transfer
     public decimal Amount { get; init; }
     public string Reference { get; init; } = string.Empty;
     public string? Description { get; init; }
+    public string? IdempotencyKey { get; init; }
     public DateTime CreatedUtc { get; init; }
 }

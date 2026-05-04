@@ -1,3 +1,4 @@
+using System.Data.Common;
 using BankTransferService.Interfaces;
 using Microsoft.Data.SqlClient;
 
@@ -15,5 +16,5 @@ public class SqlConnectionFactory : IDbConnectionFactory
             ?? throw new InvalidOperationException("Connection string 'BankDb' is not configured.");
     }
 
-    public SqlConnection CreateConnection() => new SqlConnection(_connectionString);
+    public DbConnection CreateConnection() => new SqlConnection(_connectionString);
 }

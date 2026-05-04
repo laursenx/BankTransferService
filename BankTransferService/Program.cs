@@ -26,6 +26,11 @@ builder.Services.AddScoped<ITransferRepository, TransferRepository>();
 builder.Services.AddScoped<ITransferQueryRepository, TransferQueryRepository>();
 builder.Services.AddScoped<ITransferService, TransferService>();
 
+var connectionString =
+    builder.Configuration.GetConnectionString("BankDb")
+    ?? throw new InvalidOperationException("Connection string 'BankDb' is not configured.");
+builder.Services.AddHealthChecks().AddSqlServer(connectionString, name: "database");
+
 var app = builder.Build();
 
 if (app.Environment.IsDevelopment())
@@ -51,4 +56,5 @@ else
 app.UseHttpsRedirection();
 app.UseAuthorization();
 app.MapControllers();
+app.MapHealthChecks("/health");
 app.Run();

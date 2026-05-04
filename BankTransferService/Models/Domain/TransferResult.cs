@@ -1,37 +1,32 @@
 namespace BankTransferService.Models.Domain;
 
 /// <summary>
-/// Result returned from the service layer to the controller after a transfer attempt.
+/// Outcome of a transfer attempt. Discriminated by <see cref="Status"/> so callers
+/// switch on a single value rather than a bag of bool flags.
 /// </summary>
 public class TransferResult
 {
-    public bool Success { get; private set; }
-    public bool IsNotFound { get; private set; }
-    public bool IsServerError { get; private set; }
+    public TransferStatus Status { get; private set; }
     public string? ErrorMessage { get; private set; }
     public Guid? TransferId { get; private set; }
+
+    public bool Success => Status == TransferStatus.Success;
 
     private TransferResult() { }
 
     public static TransferResult Ok(Guid transferId) =>
-        new TransferResult { Success = true, TransferId = transferId };
+        new TransferResult { Status = TransferStatus.Success, TransferId = transferId };
 
     public static TransferResult Fail(string errorMessage) =>
-        new TransferResult { Success = false, ErrorMessage = errorMessage };
+        new TransferResult
+        {
+            Status = TransferStatus.ValidationFailed,
+            ErrorMessage = errorMessage,
+        };
 
     public static TransferResult NotFound(string errorMessage) =>
-        new TransferResult
-        {
-            Success = false,
-            IsNotFound = true,
-            ErrorMessage = errorMessage,
-        };
+        new TransferResult { Status = TransferStatus.NotFound, ErrorMessage = errorMessage };
 
     public static TransferResult DatabaseError(string errorMessage) =>
-        new TransferResult
-        {
-            Success = false,
-            IsServerError = true,
-            ErrorMessage = errorMessage,
-        };
+        new TransferResult { Status = TransferStatus.ServerError, ErrorMessage = errorMessage };
 }

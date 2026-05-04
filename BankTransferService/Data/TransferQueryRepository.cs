@@ -23,7 +23,7 @@ public class TransferQueryRepository : ITransferQueryRepository
             ORDER BY CreatedUtc DESC
             """;
 
-        await using var connection = _connectionFactory.CreateConnection();
+        await using var connection = (SqlConnection)_connectionFactory.CreateConnection();
         await connection.OpenAsync();
 
         await using var command = new SqlCommand(sql, connection);

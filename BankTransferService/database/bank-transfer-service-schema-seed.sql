@@ -19,22 +19,29 @@ GO
 
 CREATE TABLE dbo.Transfers
 (
-    Id            UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
-    FromAccountId UNIQUEIDENTIFIER NOT NULL,
-    ToAccountId   UNIQUEIDENTIFIER NOT NULL,
-    Amount        DECIMAL(18,2)    NOT NULL,
-    Reference     NVARCHAR(140)    NOT NULL,
-    Description   NVARCHAR(300)    NULL,
-    CreatedUtc    DATETIME2        NOT NULL CONSTRAINT DF_Transfers_CreatedUtc DEFAULT (SYSUTCDATETIME()),
-    CONSTRAINT FK_Transfers_FromAccount      FOREIGN KEY (FromAccountId) REFERENCES dbo.Accounts(Id),
-    CONSTRAINT FK_Transfers_ToAccount        FOREIGN KEY (ToAccountId)   REFERENCES dbo.Accounts(Id),
-    CONSTRAINT CK_Transfers_PositiveAmount   CHECK (Amount > 0),
+    Id              UNIQUEIDENTIFIER NOT NULL PRIMARY KEY,
+    FromAccountId   UNIQUEIDENTIFIER NOT NULL,
+    ToAccountId     UNIQUEIDENTIFIER NOT NULL,
+    Amount          DECIMAL(18,2)    NOT NULL,
+    Reference       NVARCHAR(140)    NOT NULL,
+    Description     NVARCHAR(300)    NULL,
+    IdempotencyKey  NVARCHAR(64)     NULL,
+    CreatedUtc      DATETIME2        NOT NULL CONSTRAINT DF_Transfers_CreatedUtc DEFAULT (SYSUTCDATETIME()),
+    CONSTRAINT FK_Transfers_FromAccount       FOREIGN KEY (FromAccountId) REFERENCES dbo.Accounts(Id),
+    CONSTRAINT FK_Transfers_ToAccount         FOREIGN KEY (ToAccountId)   REFERENCES dbo.Accounts(Id),
+    CONSTRAINT CK_Transfers_PositiveAmount    CHECK (Amount > 0),
     CONSTRAINT CK_Transfers_DifferentAccounts CHECK (FromAccountId <> ToAccountId)
 );
 GO
 
 CREATE INDEX IX_Transfers_FromAccountId ON dbo.Transfers(FromAccountId, CreatedUtc DESC);
 CREATE INDEX IX_Transfers_ToAccountId   ON dbo.Transfers(ToAccountId,   CreatedUtc DESC);
+
+-- Filtered unique index: enforces one transfer per idempotency key while still
+-- allowing many rows to have NULL (i.e. opt-out of idempotency).
+CREATE UNIQUE INDEX UX_Transfers_IdempotencyKey
+    ON dbo.Transfers(IdempotencyKey)
+    WHERE IdempotencyKey IS NOT NULL;
 GO
 
 -- ============================================================
