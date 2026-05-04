@@ -1,0 +1,35 @@
+name: CI
+
+on:
+  push:
+    branches: [master, main]
+  pull_request:
+    branches: [master, main]
+
+jobs:
+  build-and-test:
+    name: Build and test
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET 8
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: "8.0.x"
+
+      - name: Restore
+        run: dotnet restore
+
+      - name: Build
+        run: dotnet build --no-restore --configuration Release
+
+      - name: Unit tests
+        run: dotnet test BankTransferService.Tests --no-build --configuration Release --logger "console;verbosity=normal"
+
+      # Integration tests use Testcontainers, which talks to the Docker daemon already
+      # available on GitHub-hosted Ubuntu runners. The mssql image is pulled fresh per run.
+      - name: Integration tests
+        run: dotnet test BankTransferService.IntegrationTests --no-build --configuration Release --logger "console;verbosity=normal"

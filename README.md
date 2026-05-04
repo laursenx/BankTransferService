@@ -4,7 +4,7 @@ A small ASP.NET Core Web API that handles money transfers between bank accounts.
 
 ## What it does
 
-The API lets you transfer money between accounts, look up account info, and view transfer history. All the transfer logic runs inside a single database transaction so either everything goes through or nothing does.
+The API lets you transfer money between accounts, look up account info, and view transfer history. Each transfer runs inside a single database transaction with row-level locks on both accounts, so balances can't drift if two requests hit the same source account at the same time.
 
 ### Endpoints
 
@@ -13,10 +13,15 @@ The API lets you transfer money between accounts, look up account info, and view
 | `POST` | `/api/transfers` | Transfer money between two accounts |
 | `GET` | `/api/accounts/{id}` | Get info about an account |
 | `GET` | `/api/accounts/{id}/transfers` | Get transfer history for an account |
+| `GET` | `/health` | Health check (verifies database connectivity) |
 
-**Example POST body:**
+### Example: creating a transfer
 
-```json
+```http
+POST /api/transfers
+Content-Type: application/json
+Idempotency-Key: 6c1a3e4f-9b27-4d6f-9bda-91a1f6f3a013
+
 {
   "fromAccountId": "11111111-1111-1111-1111-111111111111",
   "toAccountId":   "22222222-2222-2222-2222-222222222222",
@@ -26,22 +31,37 @@ The API lets you transfer money between accounts, look up account info, and view
 }
 ```
 
+The `Idempotency-Key` header is optional. When provided, retrying the same request with the same key returns the original transfer instead of creating a second one — useful when the network drops between you and the API and you don't know whether the first call landed.
+
 ## Project structure
 
 ```
 BankTransferService/
-├── Controllers/       → Thin HTTP layer, just maps requests to services
-├── Services/          → Business rules and transfer logic
-├── Data/              → Repositories with parameterized SQL (ADO.NET)
-├── Interfaces/        → Contracts for DI
-├── Models/            → Domain objects and DTOs
-└── database/          → SQL schema + seed data
+├── Controllers/                       → Thin HTTP layer
+├── Services/
+│   └── TransferService.cs             → Business rules + transaction orchestration
+├── Data/
+│   ├── SqlConnectionFactory.cs        → Provider-agnostic DbConnection factory
+│   ├── AccountRepository.cs           → Account reads/writes (locking + non-locking)
+│   ├── TransferRepository.cs          → Transfer inserts + idempotency lookup
+│   └── TransferQueryRepository.cs     → Transfer history reads
+├── Interfaces/                        → Contracts for DI
+├── Models/
+│   ├── Domain/                        → Account, Transfer, TransferResult, TransferStatus
+│   ├── Requests/                      → TransferRequest (input DTO)
+│   └── Responses/                     → TransferResponse, AccountResponse, ErrorResponse, TransferCreatedResponse
+└── database/                          → SQL schema + seed data
 
-BankTransferService.Tests/
+BankTransferService.Tests/             → Unit tests (no database)
 └── TransferServiceTests.cs
+
+BankTransferService.IntegrationTests/  → Integration tests (real SQL Server via Testcontainers)
+├── DatabaseFixture.cs
+├── TestConnectionFactory.cs
+└── TransferServiceIntegrationTests.cs
 ```
 
-The project follows a pretty standard layered setup — controllers don't touch any business logic, services handle the rules, and repositories deal with the database. Everything is wired up through dependency injection with interfaces so it's easy to swap things out for testing.
+The layering is strict: controllers only handle HTTP, the service owns the business rules and the database transaction, and repositories only run SQL. Pure validation rules live in `TransferService.ValidateBusinessRules`, which means they can be unit-tested directly with constructed `Account` objects — no mocks, no I/O.
 
 ## Transfer rules
 
@@ -52,13 +72,13 @@ Before a transfer goes through, the service checks:
 - Both accounts need to exist and be active
 - Sender can't go below their overdraft limit
 
-If any of those fail, nothing gets saved. The debit, credit, and transfer log all happen in one transaction.
+If any of those fail, nothing gets saved. The debit, credit, and transfer log all happen in one transaction with `RepeatableRead` isolation and `UPDLOCK, HOLDLOCK` on both account rows.
 
 ## Getting started
 
 **You'll need:**
 - .NET 8 SDK
-- SQL Server (LocalDB works fine)
+- SQL Server (LocalDB works fine for local development; the integration tests use Testcontainers and just need Docker)
 
 ### Database
 
@@ -93,7 +113,7 @@ In `appsettings.json`, set your connection string:
 dotnet run --project BankTransferService
 ```
 
-The API docs (Scalar) will be at `http://localhost:5227/scalar/v1` (or `https://localhost:7150` if using the https profile).
+The API docs (Scalar) will be at `http://localhost:5227/scalar/v1` (or `https://localhost:7150` if using the https profile). Health check is at `/health`.
 
 ## Seed data
 
@@ -109,42 +129,57 @@ The SQL script comes with a few test accounts:
 
 ## Tests
 
+The project ships with two test suites — fast unit tests and slower integration tests against a real database.
+
+### Unit tests
+
 ```bash
 dotnet test BankTransferService.Tests
 ```
 
-Unit tests use NSubstitute to mock the repositories so no database is needed. They cover the main validation scenarios — zero/negative amounts, same account, missing accounts, inactive accounts, insufficient funds, overdraft limits, and error handling.
+These don't need a database. They cover the pure business rules in `TransferService.ValidateBusinessRules` (active checks, insufficient funds, overdraft) plus the pre-DB validations in `ExecuteTransferAsync` (zero/negative amount, same account). The repositories and connection factory are substituted with NSubstitute, so the rules are tested without any I/O.
 
-### Manual test scenarios
+### Integration tests
 
-These are the scenarios I tested manually through Scalar/Postman:
+```bash
+dotnet test BankTransferService.IntegrationTests
+```
 
-| ID | Scenario | Input | Expected | DB effect |
-|----|----------|-------|----------|-----------|
-| T01 | Valid transfer | 1001→1002, 100.00 | 201 | Balances updated, transfer logged |
-| T02 | Overdraft transfer | 2001→1001, 300.00 | 201 | 2001 goes to -150.00 (within limit) |
-| T03 | Insufficient funds | 1002→1001, 1300.00 | 400 | Nothing changes |
-| T04 | Same account | 1001→1001, 50.00 | 400 | Nothing changes |
-| T05 | Zero amount | 1001→1002, 0.00 | 400 | Nothing changes |
-| T06 | Negative amount | 1001→1002, -25.00 | 400 | Nothing changes |
-| T07 | Unknown sender | ???→1002, 50.00 | 404 | Nothing changes |
-| T08 | Unknown receiver | 1001→???, 50.00 | 404 | Nothing changes |
-| T09 | Inactive sender | 9001→1001, 50.00 | 400 | Nothing changes |
-| T10 | Decimal amount | 1001→1002, 99.95 | 201 | Balances reflect exact decimals |
-| T11 | SQL injection attempt | Malicious reference string | 201/400 | Tables intact, parameterized SQL handles it |
-| T12 | Mid-transaction failure | Simulated error after debit | 500 | Full rollback, no changes |
+**Requires Docker running.** These tests use [Testcontainers](https://dotnet.testcontainers.org/) to spin up a real SQL Server 2022 container, run the project's `database/bank-transfer-service-schema-seed.sql` against it, and exercise `TransferService` end-to-end. Each test resets the schema so they stay isolated. First run pulls the mssql image (~1.5 GB, takes a minute or so); subsequent runs complete in ~10 seconds total.
 
----
+These cover the parts that mocks can't honestly verify — row-level locking, transaction commit, rollback when a failure happens after balances have been touched, and idempotency-key replay behaviour.
+
+### Test scenarios
+
+| ID | Scenario | Input | Expected | DB effect | Coverage |
+|----|----------|-------|----------|-----------|----------|
+| T01 | Valid transfer | 1001→1002, 100.00 | 201 | Balances updated, transfer logged | Integration |
+| T02 | Overdraft transfer | 2001→1001, 300.00 | 201 | 2001 goes to -150.00 (within limit) | Integration |
+| T03 | Insufficient funds | 1002→1001, 1300.00 | 400 | Nothing changes | Integration + unit |
+| T04 | Same account | 1001→1001, 50.00 | 400 | Nothing changes | Unit |
+| T05 | Zero amount | 1001→1002, 0.00 | 400 | Nothing changes | Unit |
+| T06 | Negative amount | 1001→1002, -25.00 | 400 | Nothing changes | Unit |
+| T07 | Unknown sender | ???→1002, 50.00 | 404 | Nothing changes | Integration |
+| T08 | Unknown receiver | 1001→???, 50.00 | 404 | Nothing changes | Manual |
+| T09 | Inactive sender | 9001→1001, 50.00 | 400 | Nothing changes | Integration + unit |
+| T10 | Decimal amount | 1001→1002, 99.95 | 201 | Balances reflect exact decimals | Manual |
+| T11 | SQL injection attempt | Malicious reference string | 201/400 | Tables intact, parameterized SQL handles it | Manual |
+| T12 | Mid-transaction failure | Simulated error after debit | 500 | Full rollback, no changes | Integration |
+| T13 | Idempotent retry | Same `Idempotency-Key` twice | 201 both times, same `transferId` | Balances change once, one transfer row | Integration |
+
+## Continuous integration
+
+A GitHub Actions workflow at `.github/workflows/ci.yml` runs on every push and pull request. It restores, builds in Release configuration, runs the unit tests, and runs the integration tests. The integration step works in CI because GitHub-hosted Ubuntu runners have Docker available, so Testcontainers can spin up the mssql container the same way it does locally.
 
 ## Known limitations
 
-Since this is a school project there are some things I didn't implement but would consider for a real system:
+This is a school project, so a few things that a real system would need are out of scope:
 
-- There's no authentication, so all endpoints are open. You'd obviously want JWT or something similar in production.
-- No rate limiting on any of the endpoints, so in theory someone could just spam transfers.
-- The API gives pretty specific error messages like "account not active" which is nice for debugging but probably not great in production since it leaks internal state.
-- No daily transfer limits or per-transaction caps — you can drain a whole account in one call.
-- Transfers are logged in the database but there's no audit trail for who actually made the request.
+- No authentication on any endpoint — any caller can move money. A real deployment would need JWT or similar.
+- No rate limiting, so a single client could spam transfers.
+- Error messages are pretty specific ("account not active") which is great for debugging but leaks internal state. Production would want generic messages plus structured logs for operators.
+- No daily transfer limits or per-transaction caps — a single call can drain an account.
+- Transfers are logged in the database but there's no audit trail for *who* actually triggered the request (i.e. no actor / API client identity).
 
 ---
 
