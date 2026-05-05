@@ -33,8 +33,10 @@ public class TransferRepository : ITransferRepository
             transfer.ToAccountId;
         command.Parameters.Add("@Amount", SqlDbType.Decimal).Value = transfer.Amount;
         command.Parameters.Add("@Reference", SqlDbType.NVarChar, 140).Value = transfer.Reference;
-        command.Parameters.Add("@Description", SqlDbType.NVarChar, 300).Value =
-            transfer.Description is null ? DBNull.Value : transfer.Description;
+        command.Parameters.Add("@Description", SqlDbType.NVarChar, 300).Value = transfer.Description
+            is null
+            ? DBNull.Value
+            : transfer.Description;
         command.Parameters.Add("@IdempotencyKey", SqlDbType.NVarChar, 64).Value =
             transfer.IdempotencyKey is null ? DBNull.Value : transfer.IdempotencyKey;
         command.Parameters.Add("@CreatedUtc", SqlDbType.DateTime2).Value = transfer.CreatedUtc;

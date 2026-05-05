@@ -11,7 +11,7 @@ builder.Services.AddSwaggerGen(options =>
 {
     options.SwaggerDoc(
         "v1",
-        new Microsoft.OpenApi.Models.OpenApiInfo
+        new Microsoft.OpenApi.OpenApiInfo
         {
             Title = "BankTransferService API",
             Version = "v1",

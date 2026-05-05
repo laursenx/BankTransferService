@@ -79,8 +79,7 @@ public class TransferService : ITransferService
                 transaction
             );
 
-            var fromAccount =
-                firstId == request.FromAccountId ? firstAccount : secondAccount;
+            var fromAccount = firstId == request.FromAccountId ? firstAccount : secondAccount;
             var toAccount = firstId == request.FromAccountId ? secondAccount : firstAccount;
 
             if (fromAccount is null)

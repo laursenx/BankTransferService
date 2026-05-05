@@ -179,9 +179,7 @@ public class TransferServiceIntegrationTests : IClassFixture<DatabaseFixture>, I
         var beforeSender = (await _accountRepository.GetByIdAsync(Account9001))!.Balance;
         var beforeReceiver = (await _accountRepository.GetByIdAsync(Account1001))!.Balance;
 
-        var result = await _sut.ExecuteTransferAsync(
-            Request(Account9001, Account1001, 50m, "T09")
-        );
+        var result = await _sut.ExecuteTransferAsync(Request(Account9001, Account1001, 50m, "T09"));
 
         Assert.False(result.Success);
         Assert.Contains("not active", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
@@ -265,7 +263,11 @@ public class TransferServiceIntegrationTests : IClassFixture<DatabaseFixture>, I
     /// </summary>
     private sealed class ThrowingTransferRepository : ITransferRepository
     {
-        public Task InsertAsync(Transfer transfer, DbConnection connection, DbTransaction transaction)
+        public Task InsertAsync(
+            Transfer transfer,
+            DbConnection connection,
+            DbTransaction transaction
+        )
         {
             throw CreateSqlException();
         }
