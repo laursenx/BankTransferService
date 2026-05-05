@@ -58,22 +58,36 @@ public class TransferService : ITransferService
                     return TransferResult.Ok(existingTransferId.Value);
             }
 
-            var fromAccount = await _accountRepository.GetByIdForUpdateAsync(
-                request.FromAccountId,
+            // Acquire row locks in a deterministic global order (lowest Guid first) so two
+            // concurrent transfers in opposing directions (A->B and B->A) can never form a
+            // deadlock cycle. With per-request ordering SQL Server detects the cycle and
+            // kills one transaction with error 1205; with ordered locking the second
+            // transfer just waits for the first to commit.
+            var (firstId, secondId) =
+                request.FromAccountId.CompareTo(request.ToAccountId) < 0
+                    ? (request.FromAccountId, request.ToAccountId)
+                    : (request.ToAccountId, request.FromAccountId);
+
+            var firstAccount = await _accountRepository.GetByIdForUpdateAsync(
+                firstId,
                 connection,
                 transaction
             );
+            var secondAccount = await _accountRepository.GetByIdForUpdateAsync(
+                secondId,
+                connection,
+                transaction
+            );
+
+            var fromAccount =
+                firstId == request.FromAccountId ? firstAccount : secondAccount;
+            var toAccount = firstId == request.FromAccountId ? secondAccount : firstAccount;
 
             if (fromAccount is null)
                 return TransferResult.NotFound(
                     $"Source account '{request.FromAccountId}' was not found."
                 );
 
-            var toAccount = await _accountRepository.GetByIdForUpdateAsync(
-                request.ToAccountId,
-                connection,
-                transaction
-            );
             if (toAccount is null)
                 return TransferResult.NotFound(
                     $"Destination account '{request.ToAccountId}' was not found."
@@ -113,8 +127,13 @@ public class TransferService : ITransferService
 
             return TransferResult.Ok(transfer.Id);
         }
-        catch (DbException ex)
+        catch (Exception ex) when (ex is DbException or InvalidOperationException)
         {
+            // ADO.NET surfaces failures both as DbException (SQL errors, deadlock
+            // victims, timeouts) and as InvalidOperationException (connection in
+            // wrong state, transaction already disposed, command misuse). Both
+            // need to roll back the ambient transaction and return a clean 500
+            // instead of bubbling out as an unhandled exception.
             _logger.LogError(
                 ex,
                 "Database error executing transfer from {FromAccountId} to {ToAccountId}",

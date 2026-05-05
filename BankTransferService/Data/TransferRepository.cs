@@ -39,7 +39,11 @@ public class TransferRepository : ITransferRepository
             transfer.IdempotencyKey is null ? DBNull.Value : transfer.IdempotencyKey;
         command.Parameters.Add("@CreatedUtc", SqlDbType.DateTime2).Value = transfer.CreatedUtc;
 
-        await command.ExecuteNonQueryAsync();
+        var rowsAffected = await command.ExecuteNonQueryAsync();
+        if (rowsAffected != 1)
+            throw new InvalidOperationException(
+                $"Expected 1 row affected when inserting transfer '{transfer.Id}', but got {rowsAffected}."
+            );
     }
 
     public async Task<Guid?> FindIdByIdempotencyKeyAsync(

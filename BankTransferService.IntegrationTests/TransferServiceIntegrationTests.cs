@@ -97,6 +97,45 @@ public class TransferServiceIntegrationTests : IClassFixture<DatabaseFixture>, I
         Assert.Equal(beforeTo, afterTo);
     }
 
+    /// <summary>
+    /// Runs several A->B and B->A transfers in parallel. With per-request lock ordering
+    /// driven only by the request payload, SQL Server is expected to detect a deadlock
+    /// cycle on at least one pair and kill the victim transaction (error 1205), which the
+    /// service maps to <see cref="TransferStatus.ServerError"/>. With deterministic
+    /// (lower-Guid first) lock ordering, all transfers serialize cleanly and the test
+    /// passes.
+    /// </summary>
+    [Fact]
+    public async Task ConcurrentOpposingTransfers_DoNotDeadlock()
+    {
+        const int pairs = 10;
+        var tasks = new List<Task<TransferResult>>();
+
+        for (int i = 0; i < pairs; i++)
+        {
+            tasks.Add(
+                _sut.ExecuteTransferAsync(Request(Account1001, Account1002, 1m, $"A->B-{i}"))
+            );
+            tasks.Add(
+                _sut.ExecuteTransferAsync(Request(Account1002, Account1001, 1m, $"B->A-{i}"))
+            );
+        }
+
+        var results = await Task.WhenAll(tasks);
+
+        var failures = results.Where(r => !r.Success).ToList();
+        Assert.True(
+            failures.Count == 0,
+            $"{failures.Count}/{results.Length} transfers failed. First: status={failures.FirstOrDefault()?.Status} message={failures.FirstOrDefault()?.ErrorMessage}"
+        );
+
+        // Equal numbers of A->B and B->A transfers at the same amount must net to zero.
+        var a = await _accountRepository.GetByIdAsync(Account1001);
+        var b = await _accountRepository.GetByIdAsync(Account1002);
+        Assert.Equal(5000m, a!.Balance);
+        Assert.Equal(1250m, b!.Balance);
+    }
+
     [Fact]
     public async Task RepeatedRequestWithSameIdempotencyKey_ReturnsOriginalTransferAndAppliesEffectsOnce()
     {

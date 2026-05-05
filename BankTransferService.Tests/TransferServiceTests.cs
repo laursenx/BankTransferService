@@ -95,6 +95,23 @@ public class TransferServiceTests
         Assert.Equal(TransferStatus.ServerError, result.Status);
     }
 
+    [Fact]
+    public async Task ExecuteTransfer_InvalidOperation_ReturnsServerError()
+    {
+        // ADO.NET surfaces a number of failure modes (e.g. connection in wrong state,
+        // transaction already committed) as InvalidOperationException rather than
+        // DbException. The service must map those to a clean ServerError response
+        // instead of letting them bubble out as an unhandled 500.
+        _connectionFactory
+            .CreateConnection()
+            .Returns<DbConnection>(_ => throw new InvalidOperationException("connection state"));
+
+        var result = await _sut.ExecuteTransferAsync(ValidRequest(FromId, ToId, 100m));
+
+        Assert.False(result.Success);
+        Assert.Equal(TransferStatus.ServerError, result.Status);
+    }
+
     // ---------------------------------------------------------------------
     // Pure business rule tests - call the static validator directly
     // ---------------------------------------------------------------------
