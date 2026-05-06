@@ -1,0 +1,56 @@
+name: bank-transfer-service
+
+services:
+  db:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    environment:
+      ACCEPT_EULA: "Y"
+      MSSQL_PID: Developer
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}
+    ports:
+      - "1433:1433"
+    volumes:
+      - sqlserver-data:/var/opt/mssql
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/mssql-tools18/bin/sqlcmd -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -C -Q \"SELECT 1\" || exit 1"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 20s
+
+  db-init:
+    image: mcr.microsoft.com/mssql/server:2022-latest
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD:?Set MSSQL_SA_PASSWORD in .env}
+      BANK_DB_NAME: BankTransferDb
+      SQLSERVER_HOST: db
+    volumes:
+      - ./BankTransferService/database/bank-transfer-service-schema-seed.sql:/workspace/schema.sql:ro
+      - ./docker/init-db.sh:/workspace/init-db.sh:ro
+    entrypoint:
+      - /bin/bash
+      - /workspace/init-db.sh
+
+  api:
+    build:
+      context: .
+      dockerfile: BankTransferService/Dockerfile
+    depends_on:
+      db-init:
+        condition: service_completed_successfully
+    environment:
+      ASPNETCORE_ENVIRONMENT: Development
+      ASPNETCORE_URLS: http://+:8080
+      ConnectionStrings__BankDb: Server=db,1433;Database=BankTransferDb;User Id=sa;Password=${MSSQL_SA_PASSWORD};Encrypt=True;TrustServerCertificate=True;
+    ports:
+      - "8080:8080"
+
+volumes:
+  sqlserver-data:

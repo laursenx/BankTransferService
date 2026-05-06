@@ -115,6 +115,42 @@ dotnet run --project BankTransferService
 
 The API docs (Scalar) will be at `http://localhost:5227/scalar/v1` (or `https://localhost:7150` if using the https profile). Health check is at `/health`.
 
+### Run it with Docker Compose
+
+The repo also includes a local development Compose setup using the Compose Specification and the official Microsoft SQL Server 2022 image.
+
+`2022-latest` is used intentionally so local Docker behavior stays aligned with the integration test baseline.
+
+1. Copy `.env.example` to `.env` and choose a strong SA password.
+2. Start the stack:
+
+```bash
+docker compose up --build
+```
+
+This starts:
+
+- `db` -> SQL Server 2022 Developer Edition
+- `db-init` -> creates `BankTransferDb` and applies `database/bank-transfer-service-schema-seed.sql`
+- `api` -> ASP.NET Core API on `http://localhost:8080`
+
+Useful URLs:
+
+- Scalar docs: `http://localhost:8080/scalar/v1`
+- Health check: `http://localhost:8080/health`
+
+To stop the stack:
+
+```bash
+docker compose down
+```
+
+To stop it and remove the SQL Server data volume too:
+
+```bash
+docker compose down -v
+```
+
 ## Seed data
 
 The SQL script comes with a few test accounts:
