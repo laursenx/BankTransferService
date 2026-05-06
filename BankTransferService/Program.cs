@@ -1,4 +1,5 @@
 using BankTransferService.Data;
+using BankTransferService.Diagnostics;
 using BankTransferService.Interfaces;
 using BankTransferService.Services;
 using Scalar.AspNetCore;
@@ -20,6 +21,10 @@ builder.Services.AddSwaggerGen(options =>
     );
 });
 
+// Problem details and exception handling (modern ASP.NET Core 8.0+ pattern)
+builder.Services.AddProblemDetails();
+builder.Services.AddExceptionHandler<CustomExceptionHandler>();
+
 builder.Services.AddSingleton<IDbConnectionFactory, SqlConnectionFactory>();
 builder.Services.AddScoped<IAccountRepository, AccountRepository>();
 builder.Services.AddScoped<ITransferRepository, TransferRepository>();
@@ -40,18 +45,12 @@ if (app.Environment.IsDevelopment())
 }
 else
 {
-    app.UseExceptionHandler(error =>
-        error.Run(async context =>
-        {
-            context.Response.StatusCode = StatusCodes.Status500InternalServerError;
-            context.Response.ContentType = "application/json";
-            await context.Response.WriteAsJsonAsync(
-                new { message = "An unexpected error occurred. Please try again later." }
-            );
-        })
-    );
     app.UseHsts();
 }
+
+// Modern exception handling middleware (replaces old UseExceptionHandler pattern)
+app.UseExceptionHandler();
+app.UseStatusCodePages();
 
 app.UseHttpsRedirection();
 app.UseAuthorization();
